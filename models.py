@@ -13,6 +13,8 @@ class A11yObservation(Observation):
     message: str
     dom_snapshot: Optional[str] = None
     focus_order: Optional[List[str]] = None
+    reward: float = 0.0
+    done: bool = False
 
 
 class A11yState(State):

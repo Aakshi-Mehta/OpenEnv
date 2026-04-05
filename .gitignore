@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+test_connection.py
+server/build_env.py
+.venv/
+venv/
+env/
+.pytest_cache/
