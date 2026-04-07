@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 
 from openai import OpenAI
 
-from server.environment import A11yEngineerEnv, TASKS
+from server.environment import A11yEngineerEnv
+from server.dataset import TASKS
 from models import A11yAction
 
 load_dotenv()  # Load environment variables from .env file
