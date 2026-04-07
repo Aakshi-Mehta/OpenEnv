@@ -62,7 +62,6 @@ COPY --from=builder /app/env/server/ /app/server/
 COPY models.py /app/
 COPY client.py /app/
 COPY llm_agent.py /app/
-COPY baseline.py /app/
 COPY inference.py /app/
 
 # Set PATH to use the virtual environment

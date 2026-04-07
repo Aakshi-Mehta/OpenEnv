@@ -28,7 +28,8 @@ load_dotenv()  # Load environment variables from .env file
 # --- Environment Configurations ---
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
-API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
 BENCHMARK = "a11yengineer"
 MAX_STEPS = 15
@@ -63,7 +64,6 @@ Check if reward increased.
 be HIDDEN entirely or if you are missing a structural connection (like aria-describedby). \
 Never repeat an action that did not improve the score.
 
-═══ REWARD INTERPRETATION ═══
 ═══ REWARD INTERPRETATION ═══
 • reward = 0.0  → No progress yet. Explore more.
 • Discovery Reward (+0.2) → You found a bug's location, but haven't FIXED it yet.
@@ -204,7 +204,7 @@ def get_action(client: OpenAI, context: str, retry: int = 0) -> tuple[dict, Opti
 # ───────────────────── MAIN PIPELINE ─────────────────────
 def main() -> None:
     # Initialize Open AI client pointed to Groq (or fallback API endpoint)
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=GROQ_API_KEY)
     env = A11yEngineerEnv()
 
     # Collect all tasks to benchmark

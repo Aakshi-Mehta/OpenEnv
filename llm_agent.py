@@ -316,7 +316,11 @@ def run_agent(task: str, max_steps: int = 25):
     adapting its strategy based on reward signals from the environment.
     """
     time.sleep(2.0)  # Ensure previous session is fully cleared
-    with A11yClient(base_url="http://localhost:8000").sync() as env:
+    # HF Spaces with base_path=/web expose the websocket at /web/ws.
+    base_url = os.environ.get(
+        "A11Y_ENV_URL"
+    )
+    with A11yClient(base_url=base_url).sync() as env:
 
         result = env.reset(task=task)
         obs = result.observation
