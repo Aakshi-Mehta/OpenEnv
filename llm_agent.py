@@ -30,7 +30,7 @@ load_dotenv()  # Load variables from .env if it exists
 # Use environment variable; fall back to None for security
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY, max_retries=0)
-MODEL = "llama-3.1-8b-instant"
+MODEL = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 
 
 # ───────────────────── SYSTEM PROMPT ─────────────────────
@@ -43,41 +43,51 @@ by finding and fixing ALL accessibility issues.
 1. EXPLORE FIRST — Before modifying anything, use SCREEN_READER on elements and \
 TAB through the page to understand the current accessibility state.
 2. DIAGNOSE — Analyze the DOM for common violations:
+   • Hidden content traps — Visually hidden or off-screen elements that are still \
+focusable or readable (Fix: Use 'inert', 'aria-hidden=\"true\"', or 'tabindex=\"-1\"').
    • Missing aria-label / alt text on interactive or image elements
-   • Missing aria-hidden on decorative / background containers
    • Missing aria-live on dynamically-updated regions
    • Keyboard traps (elements that shouldn't be focusable)
    • Missing roles on interactive elements
-3. FIX — Use MODIFY to add the correct ARIA attributes. Fix ALL issues, not just one.
+   • Disconnected dynamic widgets — Search inputs, comboboxes, or toggle buttons 
+     that control another element must use 'aria-controls' to point to the ID of 
+     the controlled element, and 'aria-expanded' to indicate its state.
+3. FIX — Use MODIFY to add the correct ARIA attributes. Fix ALL issues, not just one. \
+For boolean attributes like 'inert' or 'disabled', set the value to an empty string \"\".
 4. VERIFY — After fixing, use SCREEN_READER / TAB to confirm the fix worked. \
 Check if reward increased.
-5. ADAPT — If reward did NOT increase after an action, that action was unhelpful. \
-Try a DIFFERENT approach. Never repeat an action that did not improve the score.
+5. ADAPT — If the reward did NOT increase, your diagnosis was wrong. STOP trying to \
+'improve' that element with labels or roles. Instead, consider if the element should \
+be HIDDEN entirely or if you are missing a structural connection (like aria-describedby). \
+Never repeat an action that did not improve the score.
 
 ═══ REWARD INTERPRETATION ═══
+═══ REWARD INTERPRETATION ═══
 • reward = 0.0  → No progress yet. Explore more.
-• 0.0 < reward < 1.0 → Partial progress. Some issues fixed, others remain. \
-Keep going.
+• Discovery Reward (+0.2) → You found a bug's location, but haven't FIXED it yet.
+• Partial Reward (e.g., 0.5) → EXCELLENT! You fixed PART of a complex issue. 
+  DO NOT UNDO your last action. Leave it alone and figure out the missing half 
+  (e.g., if you hid an element from screen readers, you might still need to hide 
+  its children from keyboard focus using tabindex="-1", or vice versa).
 • reward = 1.0  → All issues fixed. Task complete!
-• reward INCREASED after your last action → Good strategy, continue.
-• reward UNCHANGED after your last action → That action didn't help. Try different.
-• reward DECREASED → Your action made things worse. Undo or try another approach.
+• reward DECREASED → Your action made things worse (or you undid a correct fix). Undo it!
 
 ═══ AVAILABLE ACTIONS ═══
 1. SCREEN_READER — Read an element with a screen reader to check its a11y state.
    {"action_type": "SCREEN_READER", "element_id": "<id>"}
 2. TAB — Simulate Tab key to discover the focus/tab order of elements.
    {"action_type": "TAB"}
-3. MODIFY — Set an attribute on a DOM element to fix an a11y issue.
+3. MODIFY — Set an attribute on a DOM element to fix an a11y issue. Use value: \"\" for boolean attributes.
    {"action_type": "MODIFY", "element_id": "<id>", "attribute": "<attr>", "value": "<val>"}
 4. CLICK — Click an element (useful for verifying dynamic behavior).
    {"action_type": "CLICK", "element_id": "<id>"}
 
 ═══ OUTPUT FORMAT ═══
 Return ONLY a single valid JSON object. No explanations, no markdown, no text \
-outside the JSON. You MUST include a "thought" key first. Your thought must contain step-by-step reasoning: 1. Evaluate last action/reward, 2. Diagnose remaining issues in DOM, 3. Formulate fix.
+outside the JSON. You MUST include a "thought" key first. Your thought must contain \
+step-by-step reasoning: 1. Evaluate last action/reward, 2. Diagnose remaining issues in DOM, 3. Formulate fix.
 
-═══ FEW-SHOT EXAMPLE ═══
+═══ FEW-SHOT EXAMPLES ═══
 User: (DOM shows a menu-toggle button and a menu-list)
 Assistant: {
   "thought": "1. Reward is 0.0. 2. The menu button 'menu-toggle' lacks aria-expanded and the list 'menu-list' lacks role='menu'. 3. I will add aria-expanded='false' to the toggle first.",
@@ -87,11 +97,13 @@ Assistant: {
   "value": "false"
 }
 
-Example:
-{
-  "thought": "1. Last action didn't help. 2. Image 'logo' lacks alt text. 3. I will read it using SCREEN_READER to verify.",
-  "action_type": "SCREEN_READER", 
-  "element_id": "logo"
+User: (DOM shows a closed, visually off-screen sidebar)
+Assistant: {
+  "thought": "1. TAB shows focus moves to 'nav-link-1', but the description says the sidebar is closed. 2. Visually hidden elements must not be focusable or readable. 3. I will apply the boolean attribute 'inert' to the 'sidebar' container to hide it from all assistive tech.",
+  "action_type": "MODIFY",
+  "element_id": "sidebar",
+  "attribute": "inert",
+  "value": ""
 }
 """
 

@@ -1,4 +1,4 @@
-openenv-core>=0.2.2
-fastapi
-uvicorn
-beautifulsoup4
+asposestorage==1.0.2
+beautifulsoup4==4.14.3
+openenv_core==0.2.3
+openenv_core.egg==info

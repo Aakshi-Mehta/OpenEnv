@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echo_env"
+version = "0.0.1"
+description = "OpenEnv server implementation"
+requires-python = ">=3.10"
+dependencies = [
+    "openenv-core>=0.2.2",
+    "fastapi",
+    "uvicorn",
+    "beautifulsoup4",
+]
+
+[project.scripts]
+server = "server.app:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["server"]

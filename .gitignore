@@ -7,3 +7,6 @@ server/build_env.py
 venv/
 env/
 .pytest_cache/
+build/
+echo_env.egg-info/
+server.egg-info/

@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+openenv-core==0.2.3
+beautifulsoup4==4.14.3
+openai
+dotenv
+groq
+pydantic
+requests
