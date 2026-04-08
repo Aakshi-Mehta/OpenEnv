@@ -29,15 +29,15 @@ load_dotenv()  # Load environment variables from .env file
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 API_KEY = os.environ.get("API_KEY")
-TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "easy_1_checkout")
+TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "task_easy")
 
 BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
 TEMPERATURE = 0.3
 
 # --- Exclusive Range Configuration ---
-EPSILON = 0.01
-SUCCESS_SCORE_THRESHOLD = 1.0 - EPSILON  # Updated to 0.99 for the exclusive boundary
+EPSILON = 0.1
+SUCCESS_SCORE_THRESHOLD = 1.0 - EPSILON  # Updated to 0.9 for the exclusive boundary
 
 def map_to_exclusive(val: float, eps: float = EPSILON) -> float:
     """Maps an inclusive [0, 1] range to an exclusive (0, 1) range."""

@@ -17,7 +17,7 @@ tasks:
         - If there is no aria-label, output exactly 0.01.
         Output ONLY the numeric score.
 
-  - id: medium_2_dropdown
+  - id: task_medium
     difficulty: medium
     max_steps: 15
     grader:
@@ -39,7 +39,7 @@ tasks:
         
         Output ONLY the numeric score between 0.01 and 0.99.
 
-  - id: hard_3_dynamic_cart
+  - id: task_hard
     difficulty: hard
     max_steps: 15
     grader:
