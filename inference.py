@@ -7,17 +7,19 @@ Runs through all accessibility tasks, producing reproducible baseline scores.
 Requires variables:
     API_BASE_URL (defaults to Groq's OpenAI-compatible endpoint)
     MODEL_NAME
-    GROQ_API_KEY (or HF_TOKEN / API_KEY)
+    GROQ_API_KEY 
 """
 
 import os
 import json
+import sys
+import sys
 import time
 import textwrap
 from typing import List, Optional
 from dotenv import load_dotenv
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 from server.environment import A11yEngineerEnv
 from server.dataset import TASKS
@@ -28,10 +30,10 @@ load_dotenv()  # Load environment variables from .env file
 # --- Environment Configurations ---
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-HF_TOKEN = os.environ.get("HF_TOKEN")
+API_KEY = os.environ.get("API_KEY")
+TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "easy_1_checkout")
 
-BENCHMARK = "a11yengineer"
+BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
 TEMPERATURE = 0.3
 SUCCESS_SCORE_THRESHOLD = 1.0  # Perfect score required for A11y task success
@@ -204,89 +206,86 @@ def get_action(client: OpenAI, context: str, retry: int = 0) -> tuple[dict, Opti
 # ───────────────────── MAIN PIPELINE ─────────────────────
 def main() -> None:
     # Initialize Open AI client pointed to Groq (or fallback API endpoint)
-    client = OpenAI(base_url=API_BASE_URL, api_key=GROQ_API_KEY)
+    try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    except OpenAIError as e:
+        print(f"\nFailed to initialize the LLM client: {e}")
+        print("Please make sure your API_KEY is set correctly in your terminal.")
+        sys.exit(1)  
+    except Exception as e:
+        print(f"\nAn unexpected error occurred during client setup: {e}")
+        sys.exit(1)
+
     env = A11yEngineerEnv()
 
-    # Collect all tasks to benchmark
-    all_tasks = []
-    for difficulty, tasks in TASKS.items():
-        task_list = list(tasks.keys())
-        if(difficulty == "easy"):
-            all_tasks.append((difficulty, task_list[0]))
-        elif(difficulty == "medium"):
-            all_tasks.append((difficulty, task_list[1]))
-        else:
-            all_tasks.append((difficulty, task_list[0]))
 
-    # Run inference loop per task
-    for difficulty, task_id in all_tasks:
-        log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
-        obs = env.reset(task=difficulty, episode_id=task_id)
+    difficulty = TASK_NAME.split("_")[0]
+    obs = env.reset(task=difficulty, episode_id=TASK_NAME)
         
-        history = []
-        rewards = []
-        steps_taken = 0
-        score = 0.0
-        success = False
-        prev_reward = 0.0
-        last_action_error = None
+    history = []
+    rewards = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+    prev_reward = 0.0
+    last_action_error = None
+    for step in range(1, MAX_STEPS + 1):
+        if obs.done:
+            break
 
-        for step in range(1, MAX_STEPS + 1):
-            if obs.done:
-                break
+        context = build_context(
+            step=step,
+            max_steps=MAX_STEPS,
+            obs_msg=obs.message,
+            dom=obs.dom_snapshot,
+            reward=obs.reward,
+            prev_reward=prev_reward,
+            history=history,
+            focus=obs.focus_order,
+        )
 
-            context = build_context(
-                step=step,
-                max_steps=MAX_STEPS,
-                obs_msg=obs.message,
-                dom=obs.dom_snapshot,
-                reward=obs.reward,
-                prev_reward=prev_reward,
-                history=history,
-                focus=obs.focus_order,
-            )
-
-            action_dict, last_action_error = get_action(client, context)
+        action_dict, last_action_error = get_action(client, context)
             
-            # Format action for Environment and Logging
-            action_obj = A11yAction(
-                action_type=action_dict.get("action_type", "SCREEN_READER"),
-                element_id=action_dict.get("element_id"),
-                attribute=action_dict.get("attribute"),
-                value=action_dict.get("value")
-            )
-            
-            # Remove "thought" purely for logging brevity, keeping the operative keys
-            log_action_dict = {k: v for k, v in action_dict.items() if k != "thought" and v is not None}
-            action_str = json.dumps(log_action_dict)
+        # Format action for Environment and Logging
+        action_obj = A11yAction(
+            action_type=action_dict.get("action_type", "SCREEN_READER"),
+            element_id=action_dict.get("element_id"),
+            attribute=action_dict.get("attribute"),
+            value=action_dict.get("value")
+        )
+        
+        # Remove "thought" purely for logging brevity, keeping the operative keys
+        log_action_dict = {k: v for k, v in action_dict.items() if k != "thought" and v is not None}
+        action_str = json.dumps(log_action_dict)
 
-            # Step the environment
-            obs = env.step(action_obj)
-            reward = obs.reward
-            done = obs.done
+        # Step the environment
+        obs = env.step(action_obj)
+        reward = obs.reward
+        done = obs.done
 
-            rewards.append(reward)
-            steps_taken = step
+        rewards.append(reward)
+        steps_taken = step
 
-            log_step(step=step, action=action_str, reward=reward, done=done, error=last_action_error)
+        log_step(step=step, action=action_str, reward=reward, done=done, error=last_action_error)
 
-            history.append({
-                "step": step,
-                "action": log_action_dict,
-                "result": obs.message,
-                "reward_after": reward
-            })
-            
-            prev_reward = reward
+        history.append({
+            "step": step,
+            "action": log_action_dict,
+            "result": obs.message,
+            "reward_after": reward
+        })
+        
+        prev_reward = reward
 
-            if done:
-                break
+        if done:
+            break
 
-        score = max(0.0, min(float(env.reward), 1.0))  # Clamp to [0, 1]
-        success = score >= SUCCESS_SCORE_THRESHOLD
+    score = max(0.0, min(float(env.reward), 1.0))  # Clamp to [0, 1]
+    success = score >= SUCCESS_SCORE_THRESHOLD
 
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+    log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
