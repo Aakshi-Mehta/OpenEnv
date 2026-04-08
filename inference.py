@@ -29,7 +29,6 @@ load_dotenv()  # Load environment variables from .env file
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 API_KEY = os.environ.get("API_KEY")
-TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "task_easy")
 
 BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
@@ -120,6 +119,12 @@ Assistant: {
 ).strip()
 
 VALID_ACTIONS = {"SCREEN_READER", "MODIFY", "TAB", "CLICK"}
+
+TASKS = [
+    "task_easy",
+    "task_medium",
+    "task_hard"
+]
 
 
 # ───────────────────── LOGGING UTILS ─────────────────────
@@ -224,80 +229,82 @@ def main() -> None:
         sys.exit(1)
 
     env = A11yEngineerEnv()
+    for task in TASKS:
 
-    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
-    difficulty = TASK_NAME.split("_")[0]
-    obs = env.reset(task=difficulty, episode_id=TASK_NAME)
+        log_start(task=task, env=BENCHMARK, model=MODEL_NAME)
+
+        difficulty = task.split("_")[0]
+        obs = env.reset(task=difficulty, episode_id=task)
         
-    history = []
-    rewards = []
-    steps_taken = 0
-    score = 0.0
-    success = False
+        history = []
+        rewards = []
+        steps_taken = 0
+        score = 0.0
+        success = False
     
-    # Initialize starting reward as strictly exclusive 
-    prev_reward = map_to_exclusive(obs.reward if hasattr(obs, 'reward') else 0.0)
-    last_action_error = None
+        # Initialize starting reward as strictly exclusive 
+        prev_reward = map_to_exclusive(obs.reward if hasattr(obs, 'reward') else 0.0)
+        last_action_error = None
     
-    for step in range(1, MAX_STEPS + 1):
-        if obs.done:
-            break
+        for step in range(1, MAX_STEPS + 1):
+            if obs.done:
+                break
 
-        context = build_context(
-            step=step,
-            max_steps=MAX_STEPS,
-            obs_msg=obs.message,
-            dom=obs.dom_snapshot,
-            reward=prev_reward, # Pass the mapped reward into context
-            prev_reward=prev_reward,
-            history=history,
-            focus=obs.focus_order,
-        )
+            context = build_context(
+                step=step,
+                max_steps=MAX_STEPS,
+                obs_msg=obs.message,
+                dom=obs.dom_snapshot,
+                reward=prev_reward, # Pass the mapped reward into context
+                prev_reward=prev_reward,
+                history=history,
+                focus=obs.focus_order,
+            )
 
-        action_dict, last_action_error = get_action(client, context)
+            action_dict, last_action_error = get_action(client, context)
             
-        # Format action for Environment and Logging
-        action_obj = A11yAction(
-            action_type=action_dict.get("action_type", "SCREEN_READER"),
-            element_id=action_dict.get("element_id"),
-            attribute=action_dict.get("attribute"),
-            value=action_dict.get("value")
-        )
+            # Format action for Environment and Logging
+            action_obj = A11yAction(
+                action_type=action_dict.get("action_type", "SCREEN_READER"),
+                element_id=action_dict.get("element_id"),
+                attribute=action_dict.get("attribute"),
+                value=action_dict.get("value")
+            )
         
-        # Remove "thought" purely for logging brevity, keeping the operative keys
-        log_action_dict = {k: v for k, v in action_dict.items() if k != "thought" and v is not None}
-        action_str = json.dumps(log_action_dict)
+            # Remove "thought" purely for logging brevity, keeping the operative keys
+            log_action_dict = {k: v for k, v in action_dict.items() if k != "thought" and v is not None}
+            action_str = json.dumps(log_action_dict)
 
-        # Step the environment
-        obs = env.step(action_obj)
-        done = obs.done
+            # Step the environment
+            obs = env.step(action_obj)
+            done = obs.done
         
-        # --- Map the raw reward to the exclusive boundaries ---
-        mapped_reward = map_to_exclusive(obs.reward)
+            # --- Map the raw reward to the exclusive boundaries ---
+            mapped_reward = map_to_exclusive(obs.reward)
 
-        rewards.append(mapped_reward)
-        steps_taken = step
+            rewards.append(mapped_reward)
+            steps_taken = step
 
-        log_step(step=step, action=action_str, reward=mapped_reward, done=done, error=last_action_error)
+            log_step(step=step, action=action_str, reward=mapped_reward, done=done, error=last_action_error)
 
-        history.append({
-            "step": step,
-            "action": log_action_dict,
-            "result": obs.message,
-            "reward_after": mapped_reward
-        })
+            history.append({
+                "step": step,
+                "action": log_action_dict,
+                "result": obs.message,
+                "reward_after": mapped_reward
+            })
         
-        prev_reward = mapped_reward
+            prev_reward = mapped_reward
 
-        if done:
-            break
+            if done:
+                break
 
-    # Calculate final scaled score and determine success
-    score = map_to_exclusive(float(env.reward))
-    success = score >= SUCCESS_SCORE_THRESHOLD
+        # Calculate final scaled score and determine success
+        score = map_to_exclusive(float(env.reward))
+        success = score >= SUCCESS_SCORE_THRESHOLD
 
-    log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 if __name__ == "__main__":
     main()
