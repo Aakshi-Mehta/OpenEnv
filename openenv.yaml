@@ -12,9 +12,9 @@ tasks:
       prompt_template: >
         You are an expert accessibility grader. Look at the provided HTML DOM. 
         The task was to fix a missing aria-label on the 'checkout-btn' element.
-        - If the 'checkout-btn' has a descriptive aria-label, output exactly 0.99.
+        - If the 'checkout-btn' has a descriptive aria-label, output exactly 0.9.
         - If the aria-label is present but empty or poorly named, output exactly 0.5.
-        - If there is no aria-label, output exactly 0.01.
+        - If there is no aria-label, output exactly 0.1.
         Output ONLY the numeric score.
 
   - id: task_medium
@@ -33,11 +33,11 @@ tasks:
         4. Does the element with id 'item-2' have the attribute 'role="menuitem"'? (If yes, add 0.2)
         
         Calculate the total score based on the sum of the weights:
-        - If all criteria are met (sum = 1.0), output exactly 0.99.
-        - If none of the criteria are met (sum = 0.0), output exactly 0.01.
+        - If all criteria are met (sum = 1.0), output exactly 0.9.
+        - If none of the criteria are met (sum = 0.0), output exactly 0.1.
         - Otherwise, output the exact calculated sum (e.g., 0.4, 0.6, 0.8).
         
-        Output ONLY the numeric score between 0.01 and 0.99.
+        Output ONLY the numeric score between 0.1 and 0.9.
 
   - id: task_hard
     difficulty: hard
@@ -46,15 +46,16 @@ tasks:
       type: llm
       prompt_template: >
         You are an expert accessibility grader. Look at the provided HTML DOM. 
-        The task was to ensure that dynamic updates to the cart are announced to screen readers and that the add button has a descriptive label.
+        The task was to ensure that a temporary notification (toast) is correctly announced to screen readers when it becomes visible.
         
-        Evaluate the HTML for the following specific fixes and sum their associated weights:
-        1. Does the element with id 'cart-status' have the attribute 'aria-live' set to 'polite' (or 'assertive')? (If yes, add 0.7)
-        2. Does the element with id 'add-btn' have a descriptive 'aria-label' (e.g., "Add item to cart", "Add to cart", or similar)? (If yes, add 0.3)
+        Evaluate the HTML for the following exact fixes and sum their associated weights:
+        1. Does the element with id 'toast-container' have the attribute 'aria-live="polite"' (or 'aria-live' set to 'polite')? (If yes, add 0.5)
+        2. Does the element with id 'toast-container' have the attribute 'role="status"'? (If yes, add 0.5)
         
         Calculate the total score based on the sum of the weights:
-        - If all criteria are met (sum = 1.0), output exactly 0.99.
-        - If none of the criteria are met (sum = 0.0), output exactly 0.01.
-        - Otherwise, output the exact calculated sum (e.g., 0.3 or 0.7).
+        - If all criteria are met (sum = 1.0), output exactly 0.9.
+        - If none of the criteria are met (sum = 0.0), output exactly 0.1.
+        - Otherwise, output the exact calculated sum (e.g., 0.5).
         
-        Output ONLY the numeric score between 0.01 and 0.99
+        Output ONLY the numeric score between 0.1 and 0.9.
+    

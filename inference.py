@@ -9,13 +9,13 @@ Requires variables:
     MODEL_NAME
     API_KEY 
     MY_ENV_V4_BENCHMARK
-    MY_ENV_V4_TASK
 """
 
 import os
 import json
 import sys
 import textwrap
+import asyncio
 from typing import List, Optional
 from dotenv import load_dotenv
 
@@ -33,21 +33,12 @@ API_KEY = os.environ.get("API_KEY")
 BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
 TEMPERATURE = 0.3
-
-# --- Exclusive Range Configuration ---
-EPSILON = 0.1
-SUCCESS_SCORE_THRESHOLD = 1.0 - EPSILON  # Updated to 0.9 for the exclusive boundary
-
-def map_to_exclusive(val: float, eps: float = EPSILON) -> float:
-    """Maps an inclusive [0, 1] range to an exclusive (0, 1) range."""
-    # Clamp first to ensure the raw value is strictly between 0 and 1
-    clamped_val = max(0.0, min(float(val), 1.0))
-    return eps + (1.0 - 2 * eps) * clamped_val
+SUCCESS_SCORE_THRESHOLD = 0.9  # Perfect score required for A11y task success
 
 # ───────────────────── SYSTEM PROMPT ─────────────────────
 SYSTEM_PROMPT = textwrap.dedent("""\
 You are an expert accessibility engineer agent interacting with a live DOM \
-environment. Your goal is to achieve a PERFECT accessibility score (reward = 0.99) \
+environment. Your goal is to achieve a PERFECT accessibility score (reward = 1.0) \
 by finding and fixing ALL accessibility issues.
 
 ═══ STRATEGY ═══
@@ -73,14 +64,14 @@ be HIDDEN entirely or if you are missing a structural connection (like aria-desc
 Never repeat an action that did not improve the score.
 
 ═══ REWARD INTERPRETATION ═══
-* reward = 0.01  → No progress yet. Explore more.
-* Discovery Reward (+0.2) → You found a bug's location, but haven't FIXED it yet.
-* Partial Reward (e.g., 0.5) → EXCELLENT! You fixed PART of a complex issue. 
+• reward = 0.0  → No progress yet. Explore more.
+• Discovery Reward (+0.2) → You found a bug's location, but haven't FIXED it yet.
+• Partial Reward (e.g., 0.5) → EXCELLENT! You fixed PART of a complex issue. 
   DO NOT UNDO your last action. Leave it alone and figure out the missing half 
   (e.g., if you hid an element from screen readers, you might still need to hide 
   its children from keyboard focus using tabindex="-1", or vice versa).
-* reward = 0.99  → All issues fixed. Task complete!
-* reward DECREASED → Your action made things worse (or you undid a correct fix). Undo it!
+• reward = 1.0  → All issues fixed. Task complete!
+• reward DECREASED → Your action made things worse (or you undid a correct fix). Undo it!
 
 ═══ AVAILABLE ACTIONS ═══
 1. SCREEN_READER — Read an element with a screen reader to check its a11y state.
@@ -100,7 +91,7 @@ step-by-step reasoning: 1. Evaluate last action/reward, 2. Diagnose remaining is
 ═══ FEW-SHOT EXAMPLES ═══
 User: (DOM shows a menu-toggle button and a menu-list)
 Assistant: {
-  "thought": "1. Reward is 0.01. 2. The menu button 'menu-toggle' lacks aria-expanded and the list 'menu-list' lacks role='menu'. 3. I will add aria-expanded='false' to the toggle first.",
+  "thought": "1. Reward is 0.0. 2. The menu button 'menu-toggle' lacks aria-expanded and the list 'menu-list' lacks role='menu'. 3. I will add aria-expanded='false' to the toggle first.",
   "action_type": "MODIFY",
   "element_id": "menu-toggle",
   "attribute": "aria-expanded",
@@ -141,7 +132,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.4f} rewards={rewards_str}", flush=True)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
 
 
 # ───────────────────── AGENT LOGIC ─────────────────────
@@ -170,7 +161,7 @@ def build_context(
     return textwrap.dedent(f"""\
         ═══ STEP {step} of {max_steps} ═══
         OBSERVATION: {obs_msg}
-        CURRENT REWARD: {reward:.2f} / 0.99
+        CURRENT REWARD: {reward:.2f} / 1.0
         REWARD TREND: {trend}
 
         DOM SNAPSHOT:
@@ -234,19 +225,16 @@ def main() -> None:
 
         log_start(task=task, env=BENCHMARK, model=MODEL_NAME)
 
-        difficulty = task.split("_")[0]
-        obs = env.reset(task=difficulty, episode_id=task)
+        difficulty = task.split("_")[1]
+        obs = env.reset(episode_id=task, task=difficulty)
         
         history = []
         rewards = []
         steps_taken = 0
         score = 0.0
         success = False
-    
-        # Initialize starting reward as strictly exclusive 
-        prev_reward = map_to_exclusive(obs.reward if hasattr(obs, 'reward') else 0.0)
+        prev_reward = 0.0
         last_action_error = None
-    
         for step in range(1, MAX_STEPS + 1):
             if obs.done:
                 break
@@ -256,7 +244,7 @@ def main() -> None:
                 max_steps=MAX_STEPS,
                 obs_msg=obs.message,
                 dom=obs.dom_snapshot,
-                reward=prev_reward, # Pass the mapped reward into context
+                reward=obs.reward,
                 prev_reward=prev_reward,
                 history=history,
                 focus=obs.focus_order,
@@ -278,33 +266,31 @@ def main() -> None:
 
             # Step the environment
             obs = env.step(action_obj)
+            reward = obs.reward
             done = obs.done
-        
-            # --- Map the raw reward to the exclusive boundaries ---
-            mapped_reward = map_to_exclusive(obs.reward)
 
-            rewards.append(mapped_reward)
+            rewards.append(reward)
             steps_taken = step
 
-            log_step(step=step, action=action_str, reward=mapped_reward, done=done, error=last_action_error)
+            log_step(step=step, action=action_str, reward=reward, done=done, error=last_action_error)
 
             history.append({
                 "step": step,
                 "action": log_action_dict,
                 "result": obs.message,
-                "reward_after": mapped_reward
+                "reward_after": reward
             })
         
-            prev_reward = mapped_reward
+            prev_reward = reward
 
             if done:
                 break
 
-        # Calculate final scaled score and determine success
-        score = map_to_exclusive(float(env.reward))
+        score = max(0.1, min(float(env.reward), 0.9))  # Clamp to [0.1, 0.9]
         success = score >= SUCCESS_SCORE_THRESHOLD
 
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
 
 if __name__ == "__main__":
     main()

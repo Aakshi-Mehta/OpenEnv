@@ -294,7 +294,7 @@ TASKS = {
         },
     },
     "hard": {
-        "task_hard": {
+        "hard_1_dynamic_update": {
             "description": "An interface updates information dynamically after a user action, but assistive technologies may not be aware of these updates. Users relying on screen readers might miss important changes happening on the page.",
             "html": '\n            <div class="shop">\n                <div id="cart-status">\n                    <span id="cart-count">0 items</span>\n                </div>\n                <div class="product">\n                    <h2>Shoes</h2>\n                    <button id="add-btn">Add to Cart</button>\n                </div>\n            </div>\n            ',
             "expected_fixes": [
@@ -322,7 +322,7 @@ TASKS = {
             "requires_interaction": True,
             "dynamic_behavior": {"click_events": {"add-btn": "update_cart_text"}},
         },
-        "hard_2_toast": {
+        "task_hard": {
             "description": "A temporary notification appears after a user action, but users relying on assistive technologies may not be informed when the message becomes visible or what it contains.",
             "html": '\n            <div class="app">\n                <button id="save-btn">Save Content</button>\n                <div id="toast-container"></div>\n            </div>\n            ',
             "expected_fixes": [

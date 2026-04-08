@@ -151,7 +151,7 @@ Scripts expect environment variables for model access, such as:
 - `MODEL_NAME`
 - `API_BASE_URL` for OpenAI-compatible endpoints
 - `A11Y_ENV_URL` for the environment WebSocket URL
-- `MY_ENV_V4_BENCHMARK` and `MY_ENV_V4_TASK` for evaluation tracking
+- `MY_ENV_V4_BENCHMARK` for evaluation tracking
 
 They are designed to run against the live environment without needing to modify the server code.
 
