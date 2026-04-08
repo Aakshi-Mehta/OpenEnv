@@ -3,7 +3,7 @@
 # Each task has multiple deep HTML elements and requires 1 or more specific fixes.
 TASKS = {
     "easy": {
-        "easy_1_checkout": {
+        "task_easy": {
             "description": "A visually impaired user reported that they cannot figure out how to buy their items. The screen reader just announces 'button'. Fix the navigation bar.",
             "html": '\n            <div class="container">\n                <header>\n                    <nav class="top-nav">\n                        <div class="logo">ShopApp</div>\n                        <div class="actions">\n                            <button id="checkout-btn" class="nav-btn">\n                                <img id="cart-icon" src="cart.png" />\n                            </button>\n                        </div>\n                    </nav>\n                </header>\n                <main><h2>Welcome to ShopApp</h2></main>\n            </div>\n            ',
             "expected_fixes": [
@@ -146,7 +146,7 @@ TASKS = {
                 },
             ],
         },
-        "medium_2_dropdown": {
+        "task_medium": {
             "description": "User Bug Report: Screen reader users cannot tell if the Menu button is open or closed. Additionally, when they navigate inside the menu, it is read as a plain text list rather than an interactive dropdown menu.",
             "html": '\n            <div class="dropdown">\n                <button id="menu-toggle">Menu</button>\n                <ul id="menu-list">\n                    <li id="item-1">Profile</li>\n                    <li id="item-2">Logout</li>\n                </ul>\n            </div>\n            ',
             "expected_fixes": [
@@ -294,7 +294,7 @@ TASKS = {
         },
     },
     "hard": {
-        "hard_1_cart": {
+        "task_hard": {
             "description": "An interface updates information dynamically after a user action, but assistive technologies may not be aware of these updates. Users relying on screen readers might miss important changes happening on the page.",
             "html": '\n            <div class="shop">\n                <div id="cart-status">\n                    <span id="cart-count">0 items</span>\n                </div>\n                <div class="product">\n                    <h2>Shoes</h2>\n                    <button id="add-btn">Add to Cart</button>\n                </div>\n            </div>\n            ',
             "expected_fixes": [

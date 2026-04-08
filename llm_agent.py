@@ -28,7 +28,7 @@ load_dotenv()  # Load variables from .env if it exists
 
 # ───────────────────── API CLIENT ─────────────────────
 # Use environment variable; fall back to None for security
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = os.environ.get("API_KEY")
 client = Groq(api_key=GROQ_API_KEY, max_retries=0)
 MODEL = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 
