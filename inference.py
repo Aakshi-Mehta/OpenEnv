@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 
 from openai import OpenAI, OpenAIError
 
-from my_env_v4 import MyEnvV4Action, MyEnvV4Env
+from server.environment import A11yEngineerEnv, A11yAction
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -205,7 +205,7 @@ def get_action(client: OpenAI, context: str, retry: int = 0) -> tuple[dict, Opti
 
 
 # ───────────────────── MAIN PIPELINE ─────────────────────
-async def main() -> None:
+def main() -> None:
     # Initialize Open AI client pointed to Groq (or fallback API endpoint)
     try:
         client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
@@ -217,13 +217,13 @@ async def main() -> None:
         print(f"\nAn unexpected error occurred during client setup: {e}")
         sys.exit(1)
 
-    env = await MyEnvV4Env.from_docker_image(IMAGE_NAME)
+    env = A11yEngineerEnv()
 
 
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     difficulty = TASK_NAME.split("_")[0]
-    obs = await env.reset(task=difficulty, episode_id=TASK_NAME)
+    obs = env.reset(task=difficulty, episode_id=TASK_NAME)
         
     history = []
     rewards = []
@@ -250,7 +250,7 @@ async def main() -> None:
         action_dict, last_action_error = get_action(client, context)
             
         # Format action for Environment and Logging
-        action_obj = MyEnvV4Action(
+        action_obj = A11yAction(
             action_type=action_dict.get("action_type", "SCREEN_READER"),
             element_id=action_dict.get("element_id"),
             attribute=action_dict.get("attribute"),
@@ -262,7 +262,7 @@ async def main() -> None:
         action_str = json.dumps(log_action_dict)
 
         # Step the environment
-        obs = await env.step(action_obj)
+        obs = env.step(action_obj)
         reward = obs.reward
         done = obs.done
 
