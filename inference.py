@@ -7,23 +7,23 @@ Runs through all accessibility tasks, producing reproducible baseline scores.
 Requires variables:
     API_BASE_URL (defaults to Groq's OpenAI-compatible endpoint)
     MODEL_NAME
-    GROQ_API_KEY 
+    API_KEY 
+    MY_ENV_V4_BENCHMARK
+    MY_ENV_V4_TASK
+    LOCAL_IMAGE_NAME
 """
 
 import os
 import json
 import sys
-import sys
-import time
 import textwrap
+import asyncio
 from typing import List, Optional
 from dotenv import load_dotenv
 
 from openai import OpenAI, OpenAIError
 
-from server.environment import A11yEngineerEnv
-from server.dataset import TASKS
-from models import A11yAction
+from my_env_v4 import MyEnvV4Action, MyEnvV4Env
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -32,6 +32,7 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 API_KEY = os.environ.get("API_KEY")
 TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "easy_1_checkout")
+IMAGE_NAME = os.environ.get("LOCAL_IMAGE_NAME", "accessibility-engineer:latest")
 
 BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
@@ -204,7 +205,7 @@ def get_action(client: OpenAI, context: str, retry: int = 0) -> tuple[dict, Opti
 
 
 # ───────────────────── MAIN PIPELINE ─────────────────────
-def main() -> None:
+async def main() -> None:
     # Initialize Open AI client pointed to Groq (or fallback API endpoint)
     try:
         client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
@@ -216,13 +217,13 @@ def main() -> None:
         print(f"\nAn unexpected error occurred during client setup: {e}")
         sys.exit(1)
 
-    env = A11yEngineerEnv()
+    env = await MyEnvV4Env.from_docker_image(IMAGE_NAME)
 
 
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     difficulty = TASK_NAME.split("_")[0]
-    obs = env.reset(task=difficulty, episode_id=TASK_NAME)
+    obs = await env.reset(task=difficulty, episode_id=TASK_NAME)
         
     history = []
     rewards = []
@@ -249,7 +250,7 @@ def main() -> None:
         action_dict, last_action_error = get_action(client, context)
             
         # Format action for Environment and Logging
-        action_obj = A11yAction(
+        action_obj = MyEnvV4Action(
             action_type=action_dict.get("action_type", "SCREEN_READER"),
             element_id=action_dict.get("element_id"),
             attribute=action_dict.get("attribute"),
@@ -261,7 +262,7 @@ def main() -> None:
         action_str = json.dumps(log_action_dict)
 
         # Step the environment
-        obs = env.step(action_obj)
+        obs = await env.step(action_obj)
         reward = obs.reward
         done = obs.done
 
@@ -289,4 +290,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
