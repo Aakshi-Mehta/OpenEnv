@@ -10,7 +10,6 @@ Requires variables:
     API_KEY 
     MY_ENV_V4_BENCHMARK
     MY_ENV_V4_TASK
-    LOCAL_IMAGE_NAME
 """
 
 import os
@@ -32,7 +31,6 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
 API_KEY = os.environ.get("API_KEY")
 TASK_NAME = os.environ.get("MY_ENV_V4_TASK", "easy_1_checkout")
-IMAGE_NAME = os.environ.get("LOCAL_IMAGE_NAME", "accessibility-engineer:latest")
 
 BENCHMARK = os.environ.get("MY_ENV_V4_BENCHMARK", "a11yengineer")
 MAX_STEPS = 15
